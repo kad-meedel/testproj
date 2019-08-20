@@ -1,24 +1,41 @@
-// Polyfill voor Array.find support (ECMAScript 6, http://www.w3schools.com/jsref/jsref_find.asp) tbv IE11
+var request = require('request')
+var JSONStream = require('JSONStream')
+var es = require('event-stream')
 
-if (!Array.prototype.find) {
-    Array.prototype.find = function(predicate) {
-        if (this == null) {
-            throw new TypeError('Array.prototype.find called on null or undefined');
-        }
-        if (typeof predicate !== 'function') {
-            throw new TypeError('predicate must be a function');
-        }
-        var list = Object(this);
-        var length = list.length >>> 0;
-        var thisArg = arguments[1];
-        var value;
+var config = require('./conf/config.json');
 
-        for (var i = 0; i < length; i++) {
-            value = list[i];
-            if (predicate.call(thisArg, value, i, list)) {
-                return value;
-            }
-        }
-        return undefined;
-    };
-}
+request({url: config.sourceRegUrl})
+  .pipe(JSONStream.parse('rows..tarball'))
+  .pipe(es.mapSync(function(data) {
+  	var n = data.lastIndexOf('/');
+	var filename = data.substring(n, data.length);
+	var packageName = filename.substring(0, filename.lastIndexOf('-'));
+	
+	data = config.targetRegUrl + packageName + '/-' + filename;
+	
+	request(data, function (error, response, body) {
+	  if (!error && response.statusCode == 200) {
+		console.log('File downloaded: ', data);
+	  } else {
+		console.log('Error downloading file:',response.statusCode,data);
+	  }
+	})	
+  }))
+  
+request({url: config.sourceRegUrl})
+  .pipe(JSONStream.parse('rows..tarball'))
+  .pipe(es.mapSync(function(data) {
+  	var n = data.lastIndexOf('/');
+	var filename = data.substring(n, data.length);
+	var packageName = filename.substring(0, filename.lastIndexOf('-'));
+	
+	data = config.targetRegUrl + packageName
+	
+	request(data, function (error, response, body) {
+	  if (!error && response.statusCode == 200) {
+		console.log('Package meta-data downloaded: ', data);
+	  } else {
+		console.log('Error downloading Package meta-data :',response.statusCode,data);
+	  }
+	})
+  }))  
